@@ -69,6 +69,8 @@ def parse_group_file(group_file: str) -> Dict[str, List[str]]:
                     continue
 
                 try:
+                    # Splitting on the first colon is the whole file format. A group name or a user name
+                    # carrying a colon cannot be written in this file at all.
                     group_name, users_str = line.split(":", 1)
                     users = [user.strip() for user in users_str.split(",") if user.strip()]  # Split users, strip whitespace, and remove empty users.
                     if not users:
@@ -107,6 +109,8 @@ def analyze_user_groups(group_memberships: Dict[str, List[str]], min_groups: int
         A dictionary where keys are users and values are lists of groups they belong to.
     """
 
+    # Names compare exactly as written in the file. Alice and alice are two users to me, and
+    # Admin and admin are two groups, whatever the source system meant by them.
     user_to_groups: Dict[str, List[str]] = defaultdict(list)
 
     # Invert the group membership mapping to create a user-to-groups mapping.
@@ -118,6 +122,8 @@ def analyze_user_groups(group_memberships: Dict[str, List[str]], min_groups: int
                 user_to_groups[user].append(group)
 
     # Filter users who belong to at least min_groups groups.
+    # I count memberships and nothing else. Two low value groups trip the same report as an
+    # admin group paired with a finance group, because no group carries any weight here.
     users_in_multiple_groups: Dict[str, List[str]] = {
         user: groups for user, groups in user_to_groups.items() if len(groups) >= min_groups
     }
@@ -181,6 +187,8 @@ def main():
         logging.error("No valid group lines were parsed from the group file; analysis not performed.")
         sys.exit(1)
 
+    # An empty result from here is a pass, not a failure: the file parsed, nobody reached the
+    # threshold, and the run writes its empty output and exits 0.
     users_in_multiple_groups = analyze_user_groups(group_memberships, args.min_groups)
     if not write_output(users_in_multiple_groups, args.output):
         sys.exit(1)
