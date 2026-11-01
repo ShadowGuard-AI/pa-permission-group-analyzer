@@ -13,5 +13,12 @@ Identifies users belonging to multiple permission groups, highlighting potential
 - `--output`: Path to the output file to store the analysis results.
 - `--min-groups`: No description provided
 
+## Behaviour notes
+- A user listed twice in one group counts once for that group. Only distinct groups count toward `--min-groups`.
+- If the same group name appears on more than one line, the members are merged and a warning is logged. Earlier members are never silently dropped.
+- If the group file is empty or every line is malformed, no valid group lines were parsed: the tool writes no output file, reports that the analysis was not performed, and exits non-zero. A valid file in which no user meets `--min-groups` still produces a normal empty report.
+- The output path may not be the group file itself. If the resolved output path equals the input file, the tool refuses and exits 1.
+- If writing the output file fails, the tool exits 1.
+
 ## License
 Copyright (c) ShadowStrikeHQ

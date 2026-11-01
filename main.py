@@ -71,7 +71,20 @@ def parse_group_file(group_file: str) -> Dict[str, List[str]]:
                 try:
                     group_name, users_str = line.split(":", 1)
                     users = [user.strip() for user in users_str.split(",") if user.strip()]  # Split users, strip whitespace, and remove empty users.
-                    group_memberships[group_name.strip()] = users
+                    if not users:
+                        logging.error(f"Invalid line format in group file (no users listed): {line}")
+                        continue
+                    group_name = group_name.strip()
+                    if group_name in group_memberships:
+                        # A repeated group line merges with the earlier line
+                        # instead of silently replacing its members.
+                        logging.warning(f"Repeated group line for '{group_name}': merging members with the earlier line.")
+                        for user in users:
+                            if user not in group_memberships[group_name]:
+                                group_memberships[group_name].append(user)
+                    else:
+                        # Each user counts once per group, even when listed twice.
+                        group_memberships[group_name] = list(dict.fromkeys(users))
                 except ValueError:
                     logging.error(f"Invalid line format in group file: {line}")
                     continue
@@ -97,9 +110,12 @@ def analyze_user_groups(group_memberships: Dict[str, List[str]], min_groups: int
     user_to_groups: Dict[str, List[str]] = defaultdict(list)
 
     # Invert the group membership mapping to create a user-to-groups mapping.
+    # Each group is recorded at most once per user, so a repeated listing
+    # inside one group never counts as membership in two groups.
     for group, users in group_memberships.items():
-        for user in users:
-            user_to_groups[user].append(group)
+        for user in dict.fromkeys(users):
+            if group not in user_to_groups[user]:
+                user_to_groups[user].append(group)
 
     # Filter users who belong to at least min_groups groups.
     users_in_multiple_groups: Dict[str, List[str]] = {
@@ -128,11 +144,14 @@ def write_output(user_to_groups: Dict[str, List[str]], output_file: str = None):
                 for line in output_lines:
                     f.write(line + "\n")
             logging.info(f"Analysis results written to: {output_file}")
+            return True
         except IOError as e:
             logging.error(f"Error writing to output file: {e}")
+            return False
     else:
         for line in output_lines:
             print(line)
+        return True
 
 
 def main():
@@ -149,9 +168,22 @@ def main():
         logging.error("Minimum groups must be a positive integer.")
         sys.exit(1)
 
+    # The output file may not replace the group file being analysed.
+    if args.output and os.path.realpath(args.output) == os.path.realpath(args.group_file):
+        logging.error("Output path resolves to the group file itself; refusing to overwrite the input.")
+        sys.exit(1)
+
     group_memberships = parse_group_file(args.group_file)
+
+    # A run that parsed no valid group lines analysed nothing, so it must
+    # not write a success output or exit 0.
+    if not group_memberships:
+        logging.error("No valid group lines were parsed from the group file; analysis not performed.")
+        sys.exit(1)
+
     users_in_multiple_groups = analyze_user_groups(group_memberships, args.min_groups)
-    write_output(users_in_multiple_groups, args.output)
+    if not write_output(users_in_multiple_groups, args.output):
+        sys.exit(1)
 
 
 if __name__ == "__main__":
