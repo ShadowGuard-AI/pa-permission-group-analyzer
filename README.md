@@ -2,16 +2,16 @@
 Identifies users belonging to multiple permission groups, highlighting potential cumulative privilege escalation vulnerabilities due to overlapping or conflicting group permissions. - Focused on Tools for analyzing and assessing file system permissions
 
 ## Install
-`git clone https://github.com/ShadowStrikeHQ/pa-permission-group-analyzer`
+`git clone https://github.com/ShadowGuard-AI/pa-permission-group-analyzer`
 
 ## Usage
-`./pa-permission-group-analyzer [params]`
+`python3 main.py --group-file FILE [options]`
 
 ## Parameters
 - `-h`: Show help message and exit
-- `--group-file`: Path to the file containing group membership information.  Each line should be in the format: group_name:user1,user2,...
-- `--output`: Path to the output file to store the analysis results.
-- `--min-groups`: No description provided
+- `--group-file`, `-g`: (required) Path to the file containing group membership information.  Each line should be in the format: group_name:user1,user2,...
+- `--output`, `-o`: Path to the output file to store the analysis results.
+- `--min-groups`: Minimum number of groups a user must belong to in order to be reported (default: 2).
 
 ## Behaviour notes
 - A user listed twice in one group counts once for that group. Only distinct groups count toward `--min-groups`.
@@ -21,4 +21,4 @@ Identifies users belonging to multiple permission groups, highlighting potential
 - If writing the output file fails, the tool exits 1.
 
 ## License
-Copyright (c) ShadowStrikeHQ
+See LICENSE.
